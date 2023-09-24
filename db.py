@@ -162,5 +162,20 @@ class DB:
         return result
 
 
-    def traverse(self, starting_ids: [str], direction: str, link_name: str, node_name: str) -> [Id]:
-        pass
+    def traverse(self, source_node_name: str, source_ids: [Id], direction: str, link_name: str, target_node_name: str) -> [Id]:
+        assert source_node_name in self.db["schema"]["nodes"], f"Source node name: {source_node_name} not in schema"
+        assert target_node_name in self.db["schema"]["nodes"], f"Target node name: {target_node_name} not in schema"
+        assert direction in ["->", "<-"], f"Invalid direction: {direction}. Must be '->' or '<-'."
+        assert all(source_id in self.db["nodes"][source_node_name] for source_id in source_ids), f"Some source IDs not found in {source_node_name} nodes"
+        assert (source_node_name, link_name, target_node_name) in self.db["schema"]["links"] or \
+            (target_node_name, link_name, source_node_name) in self.db["schema"]["links"], f"Link: {link_name} not in schema between {source_node_name} and {target_node_name}"
+
+        results = set()
+        for source_id in source_ids:
+            try:
+                targets = self.db[direction][link_name][source_node_name][source_id].get(target_node_name, set())
+                results.update(targets)
+            except KeyError:
+                # No links for this source_id, skip to the next one
+                continue
+        return list(results)

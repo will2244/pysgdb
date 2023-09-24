@@ -64,6 +64,7 @@ class TestDB(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self.db.create("Person", [])
 
+
     def test_delete(self):
         self.make_new_db()
         
@@ -191,6 +192,51 @@ class TestDB(unittest.TestCase):
         # Invalid case: Non-existent attribute name
         with self.assertRaises(AssertionError):
             self.db.get_data("Person", ["0"], ["invalid_attribute"])
+
+
+        def test_traverse(self):
+            self.make_new_db()
+            
+            # Adding some data for testing
+            person_id = self.db.create("Person", [{"name": "Test User"}])[0]
+            movie_id = self.db.create("Movie", [{"title": "movie1"}])[0]
+            showing_id = self.db.create("Showing", [{"date": datetime.now(), "theater": "theater1"}])[0]
+            ticket_id = self.db.create("Ticket", [{"seat": "A1"}])[0]
+            
+            # Creating links
+            self.db.link("Person", person_id, "has", "Ticket", ticket_id)
+            self.db.link("Ticket", ticket_id, "for", "Showing", showing_id)
+            self.db.link("Showing", showing_id, "of", "Movie", movie_id)
+
+            # Traverse from Person to Ticket
+            tickets = self.db.traverse("Person", [person_id], "->", "has", "Ticket")
+            self.assertEqual(tickets, [ticket_id])
+
+            # Traverse from Ticket to Showing
+            showings = self.db.traverse("Ticket", [ticket_id], "->", "for", "Showing")
+            self.assertEqual(showings, [showing_id])
+
+            # Traverse from Showing to Movie
+            movies = self.db.traverse("Showing", [showing_id], "->", "of", "Movie")
+            self.assertEqual(movies, [movie_id])
+
+            # Negative Tests
+            # Invalid Source Node
+            with self.assertRaises(AssertionError):
+                self.db.traverse("InvalidNode", [person_id], "->", "has", "Ticket")
+
+            # Invalid Target Node
+            with self.assertRaises(AssertionError):
+                self.db.traverse("Person", [person_id], "->", "has", "InvalidNode")
+
+            # Invalid Direction
+            with self.assertRaises(AssertionError):
+                self.db.traverse("Person", [person_id], "<>", "has", "Ticket")
+
+            # Invalid Link
+            with self.assertRaises(AssertionError):
+                self.db.traverse("Person", [person_id], "->", "holds", "Ticket")
+
 
 
 if __name__ == '__main__':
