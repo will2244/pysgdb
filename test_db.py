@@ -165,5 +165,33 @@ class TestDB(unittest.TestCase):
             self.db.unlink("Person", ["0"], "has", "Ticket", ["10"])
 
 
+    def test_get_data(self):
+        self.make_new_db()
+        
+        # Create nodes for testing
+        self.db.create("Person", [{"name": "Test User"}])
+        self.db.create("Movie", [{"title": "The Movie"}])
+        
+        # Valid case: Getting data from the existing node
+        person_data = self.db.get_data("Person", ["0"], ["name"])
+        self.assertEqual(person_data, [["Test User"]])
+        
+        # Valid case: Getting data from the existing node
+        movie_data = self.db.get_data("Movie", ["1"], ["title"])
+        self.assertEqual(movie_data, [["The Movie"]])
+        
+        # Invalid case: Non-existent ID
+        with self.assertRaises(AssertionError):
+            self.db.get_data("Person", ["2"], ["name"])
+            
+        # Invalid case: Non-existent node name
+        with self.assertRaises(AssertionError):
+            self.db.get_data("InvalidNode", ["0"], ["name"])
+            
+        # Invalid case: Non-existent attribute name
+        with self.assertRaises(AssertionError):
+            self.db.get_data("Person", ["0"], ["invalid_attribute"])
+
+
 if __name__ == '__main__':
     unittest.main()

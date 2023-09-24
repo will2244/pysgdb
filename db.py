@@ -147,8 +147,19 @@ class DB:
                     pass  # Link didn’t exist, so nothing to unlink
 
 
-    def get_data(self, node_name: str, ids: [Id], attributes: [[str]]) -> [Dict[Id, Any]]:
-        pass
+    def get_data(self, node_name: str, ids: [Id], attributes: [str]) -> [[Any]]:
+        assert node_name in self.db["schema"]["nodes"], f"Node name: {node_name} not in schema"
+        for attr in attributes:
+            assert attr in self.db["schema"]["nodes"][node_name], f"Attribute: {attr} not found in {node_name} nodes"
+            
+        result = []
+        for node_id in ids:
+            assert node_id in self.db["nodes"][node_name], f"ID: {node_id} not found in {node_name} nodes"
+            entity_data = []
+            for attr in attributes:
+                entity_data.append(self.db["nodes"][node_name][node_id].get(attr, None))
+            result.append(entity_data)
+        return result
 
 
     def traverse(self, starting_ids: [str], direction: str, link_name: str, node_name: str) -> [Id]:
