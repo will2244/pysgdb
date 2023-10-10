@@ -6,7 +6,8 @@ from db import DB
 class TestDB(unittest.TestCase):
 
     def make_new_db(self):
-        self.db = DB({
+        self.db = DB()
+        self.db.migrate({
             "nodes": {
                 "Person": {"name": "str"},
                 "Movie": {"title": "str"},
@@ -194,48 +195,141 @@ class TestDB(unittest.TestCase):
             self.db.get_data("Person", ["0"], ["invalid_attribute"])
 
 
-        def test_traverse(self):
-            self.make_new_db()
-            
-            # Adding some data for testing
-            person_id = self.db.create("Person", [{"name": "Test User"}])[0]
-            movie_id = self.db.create("Movie", [{"title": "movie1"}])[0]
-            showing_id = self.db.create("Showing", [{"date": datetime.now(), "theater": "theater1"}])[0]
-            ticket_id = self.db.create("Ticket", [{"seat": "A1"}])[0]
-            
-            # Creating links
-            self.db.link("Person", person_id, "has", "Ticket", ticket_id)
-            self.db.link("Ticket", ticket_id, "for", "Showing", showing_id)
-            self.db.link("Showing", showing_id, "of", "Movie", movie_id)
+    def test_traverse(self):
+        self.make_new_db()
+        
+        # Adding some data for testing
+        person_id = self.db.create("Person", [{"name": "Test User"}])[0]
+        movie_id = self.db.create("Movie", [{"title": "movie1"}])[0]
+        showing_id = self.db.create("Showing", [{"date": datetime.now(), "theater": "theater1"}])[0]
+        ticket_id = self.db.create("Ticket", [{"seat": "A1"}])[0]
 
-            # Traverse from Person to Ticket
-            tickets = self.db.traverse("Person", [person_id], "->", "has", "Ticket")
-            self.assertEqual(tickets, [ticket_id])
+        # Creating links
+        self.db.link("Person", person_id, "has", "Ticket", ticket_id)
+        self.db.link("Ticket", ticket_id, "for", "Showing", showing_id)
+        self.db.link("Showing", showing_id, "of", "Movie", movie_id)
 
-            # Traverse from Ticket to Showing
-            showings = self.db.traverse("Ticket", [ticket_id], "->", "for", "Showing")
-            self.assertEqual(showings, [showing_id])
+        # Traverse from Person to Ticket
+        tickets = self.db.traverse("Person", [person_id], "->", "has", "Ticket")
+        self.assertEqual(tickets, [ticket_id])
 
-            # Traverse from Showing to Movie
-            movies = self.db.traverse("Showing", [showing_id], "->", "of", "Movie")
-            self.assertEqual(movies, [movie_id])
+        # Traverse from Ticket to Showing
+        showings = self.db.traverse("Ticket", [ticket_id], "->", "for", "Showing")
+        self.assertEqual(showings, [showing_id])
 
-            # Negative Tests
-            # Invalid Source Node
-            with self.assertRaises(AssertionError):
-                self.db.traverse("InvalidNode", [person_id], "->", "has", "Ticket")
+        # Traverse from Showing to Movie
+        movies = self.db.traverse("Showing", [showing_id], "->", "of", "Movie")
+        self.assertEqual(movies, [movie_id])
 
-            # Invalid Target Node
-            with self.assertRaises(AssertionError):
-                self.db.traverse("Person", [person_id], "->", "has", "InvalidNode")
+        # Negative Tests
+        # Invalid Source Node
+        with self.assertRaises(AssertionError):
+            self.db.traverse("InvalidNode", [person_id], "->", "has", "Ticket")
 
-            # Invalid Direction
-            with self.assertRaises(AssertionError):
-                self.db.traverse("Person", [person_id], "<>", "has", "Ticket")
+        # Invalid Target Node
+        with self.assertRaises(AssertionError):
+            self.db.traverse("Person", [person_id], "->", "has", "InvalidNode")
 
-            # Invalid Link
-            with self.assertRaises(AssertionError):
-                self.db.traverse("Person", [person_id], "->", "holds", "Ticket")
+        # Invalid Direction
+        with self.assertRaises(AssertionError):
+            self.db.traverse("Person", [person_id], "<>", "has", "Ticket")
+
+        # Invalid Link
+        with self.assertRaises(AssertionError):
+            self.db.traverse("Person", [person_id], "->", "holds", "Ticket")
+
+
+    def test_migrate_link(self):
+        self.make_new_db()
+        new_schema = {
+            "nodes": {
+                "Person": {"name": "str"},
+                "Movie": {"title": "str"},
+                "Play": {"title": "str"},
+                "Showing": {"date": "datetime", "theater": "str"},
+                "Ticket": {"seat": "str"}
+            },
+            "links": {
+                # ("Person", "has", "Ticket"), removed this one
+                ("Ticket", "for", "Showing"),
+                ("Showing", "of", "Movie"),
+                ("Showing", "of", "Play"),
+                ("Person", "enjoyed", "Play") # added this one
+            }
+        }
+        person_id = self.db.create("Person", [{"name": "Test User"}])[0]
+        ticket_id = self.db.create("Ticket", [{"seat": "A1"}])[0]
+        self.db.link("Person", person_id, "has", "Ticket", ticket_id)
+
+        # test invalid migration - link data still exists
+        with self.assertRaises(AssertionError):
+            self.db.migrate(new_schema)
+        self.db.unlink("Person", [person_id], "has", "Ticket", [ticket_id])
+
+        # test valid link migration
+        self.db.migrate(new_schema)
+
+
+        # TODO: assert that new link is in the db schema
+        # TODO: assert that the removed link is not in the schema
+
+
+
+    def test_migrate_node(self):
+        self.make_new_db()
+
+        # invalid because "Person" node is deleted while links still exist referencing "Person"
+        invalid_new_schema = {
+            "nodes": {
+                # deleted: "Person": {"name": "str"},
+                "Movie": {"title": "str"},
+                "Play": {"title": "str"},
+                "Showing": {"date": "datetime", "theater": "str"},
+                "Ticket": {"seat": "str"}
+            },
+            "links": {
+                ("Person", "has", "Ticket"),
+                ("Ticket", "for", "Showing"),
+                ("Showing", "of", "Movie"),
+                ("Showing", "of", "Play")
+            }
+        }
+        person_id = self.db.create("Person", [{"name": "Test User"}])[0]
+        ticket_id = self.db.create("Ticket", [{"seat": "A1"}])[0]
+        self.db.link("Person", person_id, "has", "Ticket", ticket_id)
+
+        # test invalid migration - link data still exists
+        with self.assertRaises(AssertionError):
+            self.db.migrate(invalid_new_schema)
+
+        valid_new_schema = {
+            "nodes": {
+                # deleted: "Person": {"name": "str"},
+                "Movie": {"title": "str"},
+                "Play": {"title": "str"},
+                "Showing": {"date": "datetime", "theater": "str"},
+                "Ticket": {"seat": "str"},
+                "Actor": {"bio": "str"} # new actor node
+            },
+            "links": {
+                # deleted: ("Person", "has", "Ticket"),
+                ("Ticket", "for", "Showing"),
+                ("Showing", "of", "Movie"),
+                ("Showing", "of", "Play"),
+                ("Actor", "acted_in", "Play") # new Actor link
+            }
+        }
+        # should fail because there is a has: Person -> Ticket connection
+        with self.assertRaises(AssertionError):
+            self.db.migrate(valid_new_schema)
+
+        # remove that connection and migration should work
+        self.db.unlink("Person", [person_id], "has", "Ticket", [ticket_id])
+
+        self.db.migrate(valid_new_schema)
+
+        # TODO: assert that new node is in the db schema
+        # TODO: assert that the removed node is not in the schema
 
 
 

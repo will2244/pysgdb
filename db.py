@@ -1,20 +1,27 @@
 import copy
 from datetime import datetime
 from typing import Dict, Any
+from unique_tuples import unique_tuples
+from unique_elements import unique_elements
 
 Id = str
 
 class DB:
-    def __init__(self, schema):
+
+    def __init__(self):
+        pass
+
+
+    def _init_schema(self, schema: dict):
         self.db = {
             "schema": {},
             "nodes": {},       # db[nodes][node_name] -> Dict[attr_name, value]
             "->": {},          # db[direction][source_node_name][id][target_node_name] -> Set[Id]
-            "<-": {},
+            "<-": {},          # db[direction][target_node_name][id][source_node_name] -> Set[Id]
             "node_links": {},  # db[node_links][source_node_name] -> Set[link_name]
             "current_id": "0"
         }
-        self.db["schema"] = copy.deepcopy(schema)
+        self.db["schema"] = copy.deepcopy(schema) # TODO: make sure 'schema' is the right shape
         
         for node_name in self.db["schema"]["nodes"].keys():
             self.db["nodes"][node_name] = {}
@@ -33,13 +40,61 @@ class DB:
             self.db["node_links"][source].add(link)
 
 
+    def _update_schema(self, schema: dict):
+
+        ### validations ###
+        current_links = self.db["schema"]["links"]
+        target_links = schema["links"]
+        deleted_links, new_links = unique_tuples(current_links, target_links)
+        deleted_link_names = [x[1] for x in deleted_links]
+
+        for (source, link, target) in deleted_links:
+            # check that there are no connections for the given link
+            remaining_forward_connections = len(self.db["->"][link][source])
+            assert remaining_forward_connections == 0, f"Cannot update schema. link ({link}: {source} -> {target}) still has '{remaining_forward_connections}' remaining connections. Please delete these first before migrating."
+            remaining_backward_connections = len(self.db["<-"][link][target])
+            assert remaining_backward_connections == 0, f"Cannot update schema. link ({link}: {target} <- {source}) still has '{remaining_backward_connections}' remaining connections. Please delete these first before migrating."
+            
+        current_nodes = list(self.db["schema"]["nodes"].keys())
+        target_nodes = list(schema["nodes"].keys())
+        deleted_nodes, new_nodes = unique_elements(current_nodes, target_nodes)
+
+        # make sure the delete node is not in a link - either forwards or backwards
+        # we can use the "node_links" structure to quickly check this
+        for node_name in deleted_nodes:
+            found_in_links = list(self.db["node_links"][node_name])
+            found_in_links = [x for x in found_in_links if x not in deleted_link_names]
+            assert len(found_in_links) == 0, f"Cannot delete node: '{node_name}' because it is still used in links: {found_in_links}"
+
+
+        # TODO
+        ### modifications ###
+        
+        # 1) Remove links
+
+        # 2) Remove nodes
+
+        # 3) Add nodes
+
+        # 4) Add links
+
+
+
+
+    def migrate(self, schema):
+        if not hasattr(self, 'db'):
+            self._init_schema(schema)
+        else:
+            self._update_schema(schema)
+
+
     def get_id(self) -> str:
         current_id = int(self.db["current_id"])
         self.db["current_id"] = str(current_id + 1)
         return str(current_id)
 
 
-    def create(self, node_name: str, attributes: [dict]):
+    def create(self, node_name: str, attributes: [dict]) -> [Id]:
         # 1) Check if the attributes are correct on write (only checks the first dictionary for speed purposes)
         assert len(attributes) > 0, "Must send at least one set of attributes to the create() function"
         assert node_name in self.db["schema"]["nodes"], "Node name does not exist in schema"
@@ -52,8 +107,12 @@ class DB:
             assert type(first_attribute_set[attribute_name]).__name__ == attribute_type, "Type mismatch in db create()"
 
         # 3) Save new entity to db
+        new_ids = []
         for attribute_set in attributes:
-            self.db["nodes"][node_name][self.get_id()] = attribute_set
+            new_id = self.get_id()
+            self.db["nodes"][node_name][new_id] = attribute_set
+            new_ids.append(new_id)
+        return new_ids
 
 
     def delete(self, node_name: str, ids: [Id]):
@@ -80,8 +139,6 @@ class DB:
             
             # delete node from db["nodes"]
             del self.db["nodes"][node_name][node_id]
-
-
 
 
     def link(self, node_1_name: str, node_1_ids: [Id], link: str, node_2_name: str, node_2_ids: [Id]):
