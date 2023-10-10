@@ -70,116 +70,116 @@ class TestDB(unittest.TestCase):
         self.make_new_db()
         
         # Create some nodes
-        self.db.create("Person", [{"name": "Test User"}]) # Id - 0
-        self.db.create("Ticket", [{"seat": "A1"}])       # Id - 1
-        self.db.create("Showing", [{"date": datetime(2023, 9, 24), "theater": "Palace"}]) # Id - 2
+        person_id = self.db.create("Person", [{"name": "Test User"}])[0]
+        ticket_id = self.db.create("Ticket", [{"seat": "A1"}])[0]
+        showing_id = self.db.create("Showing", [{"date": datetime(2023, 9, 24), "theater": "Palace"}])[0]
         
         # Link nodes
-        self.db.link("Person", ["0"], "has", "Ticket", ["1"])
-        self.db.link("Ticket", ["1"], "for", "Showing", ["2"])
+        self.db.link("Person", [person_id], "has", "Ticket", [ticket_id])
+        self.db.link("Ticket", [ticket_id], "for", "Showing", [showing_id])
         
         # Test deletion
-        self.db.delete("Person", ["0"])
+        self.db.delete("Person", [person_id])
         
         # Check if node is deleted
-        self.assertNotIn("0", self.db.db["nodes"]["Person"])
+        self.assertNotIn(person_id, self.db.db["nodes"]["Person"])
         
         # Check if links are deleted
-        self.assertNotIn("0", self.db.db["->"]["has"]["Person"])
-        self.assertNotIn("0", self.db.db["<-"]["has"]["Ticket"])
+        self.assertNotIn(person_id, self.db.db["->"]["has"]["Person"])
+        self.assertNotIn(person_id, self.db.db["<-"]["has"]["Ticket"])
         
         # Try deleting non-existent node
         with self.assertRaises(AssertionError):
-            self.db.delete("Person", ["0"])
+            self.db.delete("Person", [person_id])
         
         # Try deleting with non-existent node name
         with self.assertRaises(AssertionError):
-            self.db.delete("InvalidNode", ["0"])
+            self.db.delete("InvalidNode", [person_id])
 
 
     def test_link(self):
         self.make_new_db()
 
         # Creating Nodes to link
-        self.db.create("Person", [{"name": "Test User"}])  # ID: 0
-        self.db.create("Ticket", [{"seat": "A1"}])  # ID: 1
+        person_id = self.db.create("Person", [{"name": "Test User"}])[0] 
+        ticket_id = self.db.create("Ticket", [{"seat": "A1"}])[0]
 
         # Valid Linking
-        self.db.link("Person", ["0"], "has", "Ticket", ["1"])
+        self.db.link("Person", [person_id], "has", "Ticket", [ticket_id])
         
         # Checking the -> direction
-        self.assertIn("0", self.db.db["->"]["has"]["Person"])
-        self.assertIn("Ticket", self.db.db["->"]["has"]["Person"]["0"])
-        self.assertIn("1", self.db.db["->"]["has"]["Person"]["0"]["Ticket"])
+        self.assertIn(person_id, self.db.db["->"]["has"]["Person"])
+        self.assertIn("Ticket", self.db.db["->"]["has"]["Person"][person_id])
+        self.assertIn(ticket_id, self.db.db["->"]["has"]["Person"][person_id]["Ticket"])
         
         # Checking the <- direction
-        self.assertIn("1", self.db.db["<-"]["has"]["Ticket"])
-        self.assertIn("Person", self.db.db["<-"]["has"]["Ticket"]["1"])
-        self.assertIn("0", self.db.db["<-"]["has"]["Ticket"]["1"]["Person"])
+        self.assertIn(ticket_id, self.db.db["<-"]["has"]["Ticket"])
+        self.assertIn("Person", self.db.db["<-"]["has"]["Ticket"][ticket_id])
+        self.assertIn(person_id, self.db.db["<-"]["has"]["Ticket"][ticket_id]["Person"])
 
         # Test linking with invalid node names
         with self.assertRaises(AssertionError):
-            self.db.link("InvalidNode", ["0"], "has", "Ticket", ["1"])
+            self.db.link("InvalidNode", [person_id], "has", "Ticket", [ticket_id])
         with self.assertRaises(AssertionError):
-            self.db.link("Person", ["0"], "has", "InvalidNode", ["1"])
+            self.db.link("Person", [person_id], "has", "InvalidNode", [ticket_id])
 
         # Test linking with invalid link name
         with self.assertRaises(AssertionError):
-            self.db.link("Person", ["0"], "invalidLink", "Ticket", ["1"])
+            self.db.link("Person", [person_id], "invalidLink", "Ticket", [ticket_id])
 
         # Test linking with non-existing IDs
         with self.assertRaises(AssertionError):
-            self.db.link("Person", ["10"], "has", "Ticket", ["1"])
+            self.db.link("Person", ["10"], "has", "Ticket", [ticket_id])
         with self.assertRaises(AssertionError):
-            self.db.link("Person", ["0"], "has", "Ticket", ["10"])
+            self.db.link("Person", [person_id], "has", "Ticket", ["10"])
 
 
     def test_unlink(self):
         self.make_new_db()
 
         # Creating Nodes to link
-        self.db.create("Person", [{"name": "Test User"}])  # ID: 0
-        self.db.create("Ticket", [{"seat": "A1"}])  # ID: 1
+        person_id = self.db.create("Person", [{"name": "Test User"}])[0]
+        ticket_id = self.db.create("Ticket", [{"seat": "A1"}])[0]
 
         # Creating a link to later unlink
-        self.db.link("Person", ["0"], "has", "Ticket", ["1"])
+        self.db.link("Person", [person_id], "has", "Ticket", [ticket_id])
         # Unlinking
-        self.db.unlink("Person", ["0"], "has", "Ticket", ["1"])
+        self.db.unlink("Person", [person_id], "has", "Ticket", [ticket_id])
 
         # Verify that the link is removed in both directions
-        self.assertNotIn("0", self.db.db["->"]["has"]["Person"])
-        self.assertNotIn("1", self.db.db["<-"]["has"]["Ticket"])
+        self.assertNotIn(person_id, self.db.db["->"]["has"]["Person"])
+        self.assertNotIn(ticket_id, self.db.db["<-"]["has"]["Ticket"])
         
         # Test unlinking with invalid node names
         with self.assertRaises(AssertionError):
-            self.db.unlink("InvalidNode", ["0"], "has", "Ticket", ["1"])
+            self.db.unlink("InvalidNode", [person_id], "has", "Ticket", [ticket_id])
         with self.assertRaises(AssertionError):
-            self.db.unlink("Person", ["0"], "has", "InvalidNode", ["1"])
+            self.db.unlink("Person", [person_id], "has", "InvalidNode", [ticket_id])
 
         # Test unlinking with invalid link name
         with self.assertRaises(AssertionError):
-            self.db.unlink("Person", ["0"], "invalidLink", "Ticket", ["1"])
+            self.db.unlink("Person", [person_id], "invalidLink", "Ticket", [ticket_id])
 
         # Test unlinking with non-existing IDs
         with self.assertRaises(AssertionError):
-            self.db.unlink("Person", ["10"], "has", "Ticket", ["1"])
+            self.db.unlink("Person", ["10"], "has", "Ticket", [ticket_id])
         with self.assertRaises(AssertionError):
-            self.db.unlink("Person", ["0"], "has", "Ticket", ["10"])
+            self.db.unlink("Person", [person_id], "has", "Ticket", ["10"])
 
 
     def test_get_data(self):
         self.make_new_db()
         
         # Create nodes for testing
-        self.db.create("Person", [{"name": "Test User"}])
-        self.db.create("Movie", [{"title": "The Movie"}])
+        person_id = self.db.create("Person", [{"name": "Test User"}])[0]
+        movie_id = self.db.create("Movie", [{"title": "The Movie"}])[0]
         
         # Valid case: Getting data from the existing node
-        person_data = self.db.get_data("Person", ["0"], ["name"])
+        person_data = self.db.get_data("Person", [person_id], ["name"])
         self.assertEqual(person_data, [["Test User"]])
         
         # Valid case: Getting data from the existing node
-        movie_data = self.db.get_data("Movie", ["1"], ["title"])
+        movie_data = self.db.get_data("Movie", [movie_id], ["title"])
         self.assertEqual(movie_data, [["The Movie"]])
         
         # Invalid case: Non-existent ID
@@ -188,11 +188,11 @@ class TestDB(unittest.TestCase):
             
         # Invalid case: Non-existent node name
         with self.assertRaises(AssertionError):
-            self.db.get_data("InvalidNode", ["0"], ["name"])
+            self.db.get_data("InvalidNode", [person_id], ["name"])
             
         # Invalid case: Non-existent attribute name
         with self.assertRaises(AssertionError):
-            self.db.get_data("Person", ["0"], ["invalid_attribute"])
+            self.db.get_data("Person", [person_id], ["invalid_attribute"])
 
 
     def test_traverse(self):
