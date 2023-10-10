@@ -264,14 +264,22 @@ class TestDB(unittest.TestCase):
         # test invalid migration - link data still exists
         with self.assertRaises(AssertionError):
             self.db.migrate(new_schema)
-        self.db.unlink("Person", [person_id], "has", "Ticket", [ticket_id])
 
         # test valid link migration
+        self.db.unlink("Person", [person_id], "has", "Ticket", [ticket_id])
         self.db.migrate(new_schema)
 
+        # test that link is removed
+        assert ("Person", "has", "Ticket") not in self.db.db["schema"]["links"]
+        assert "has" not in self.db.db["->"]
+        assert "has" not in self.db.db["<-"]
+        assert "has" not in self.db.db["node_links"]["Person"]
 
-        # TODO: assert that new link is in the db schema
-        # TODO: assert that the removed link is not in the schema
+        # test that link is added
+        assert ("Person", "enjoyed", "Play") in self.db.db["schema"]["links"]
+        assert "enjoyed" in self.db.db["->"]
+        assert "enjoyed" in self.db.db["<-"]
+        assert "enjoyed" in self.db.db["node_links"]["Person"]
 
 
 
@@ -315,22 +323,25 @@ class TestDB(unittest.TestCase):
                 # deleted: ("Person", "has", "Ticket"),
                 ("Ticket", "for", "Showing"),
                 ("Showing", "of", "Movie"),
-                ("Showing", "of", "Play"),
-                ("Actor", "acted_in", "Play") # new Actor link
+                ("Showing", "of", "Play")
             }
         }
         # should fail because there is a has: Person -> Ticket connection
         with self.assertRaises(AssertionError):
             self.db.migrate(valid_new_schema)
 
-        # remove that connection and migration should work
+        # remove the connection and object so the migration works
         self.db.unlink("Person", [person_id], "has", "Ticket", [ticket_id])
-
+        self.db.delete("Person", [person_id])
         self.db.migrate(valid_new_schema)
 
-        # TODO: assert that new node is in the db schema
-        # TODO: assert that the removed node is not in the schema
+        # test node removal
+        assert "Person" not in self.db.db["schema"]["nodes"]
+        assert "Person" not in self.db.db["nodes"]
 
+        # test node insertion
+        assert {"bio": "str"} == self.db.db["schema"]["nodes"]["Actor"]
+        assert "Actor" in self.db.db["nodes"]
 
 
 if __name__ == '__main__':

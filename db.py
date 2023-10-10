@@ -21,7 +21,7 @@ class DB:
             "node_links": {},  # db[node_links][source_node_name] -> Set[link_name]
             "current_id": "0"
         }
-        self.db["schema"] = copy.deepcopy(schema) # TODO: make sure 'schema' is the right shape
+        self.db["schema"] = schema # TODO: make sure 'schema' is the right shape
         
         for node_name in self.db["schema"]["nodes"].keys():
             self.db["nodes"][node_name] = {}
@@ -59,29 +59,75 @@ class DB:
         target_nodes = list(schema["nodes"].keys())
         deleted_nodes, new_nodes = unique_elements(current_nodes, target_nodes)
 
-        # make sure the delete node is not in a link - either forwards or backwards
-        # we can use the "node_links" structure to quickly check this
         for node_name in deleted_nodes:
+            # make sure the delete node is not in a link - either forwards or backwards
             found_in_links = list(self.db["node_links"][node_name])
             found_in_links = [x for x in found_in_links if x not in deleted_link_names]
             assert len(found_in_links) == 0, f"Cannot delete node: '{node_name}' because it is still used in links: {found_in_links}"
 
+            # make sure node does not have any objects in it
+            num_node_objects = len(self.db["nodes"][node_name])
+            assert num_node_objects == 0, f"Cannot delete node: '{node_name}' becuase there are still '{num_node_objects}' objects contained in it"
 
-        # TODO
         ### modifications ###
         
         # 1) Remove links
+        for (source, link, target) in deleted_links:
+
+            # schema
+            self.db["schema"]["links"].remove((source, link, target))
+
+            # ->
+            del self.db["->"][link][source]
+            if len(self.db["->"][link]) == 0:
+                del self.db["->"][link]
+
+            # <-
+            del self.db["<-"][link][target]
+            if len(self.db["<-"][link]) == 0:
+                del self.db["<-"][link]
+            
+            # node_links
+            self.db["node_links"][source].remove(link)
+            if len(self.db["node_links"][source]) == 0:
+                del self.db["node_links"][source]
 
         # 2) Remove nodes
+        for node_name in deleted_nodes:
+            del self.db["schema"]["nodes"][node_name]
+            del self.db["nodes"][node_name]
 
         # 3) Add nodes
+        for node_name in new_nodes:
+            # add the node to the schema
+            self.db["schema"]["nodes"][node_name] = schema["nodes"][node_name]
+            self.db["nodes"][node_name] = {}
 
         # 4) Add links
+        for (source, link, target) in new_links:
+            
+            # schema
+            self.db["schema"]["links"].add((source, link, target))
 
+            # ->
+            if link not in self.db["->"]:
+                self.db["->"][link] = {}
+            self.db["->"][link][source] = {}
+
+            # <-
+            if link not in self.db["<-"]:
+                self.db["<-"][link] = {}
+            self.db["<-"][link][target] = {}
+
+            # node_links
+            if source not in self.db["node_links"]:
+                self.db["node_links"][source] = set()
+            self.db["node_links"][source].add(link)
 
 
 
     def migrate(self, schema):
+        schema = copy.deepcopy(schema)
         if not hasattr(self, 'db'):
             self._init_schema(schema)
         else:
