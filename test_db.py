@@ -364,6 +364,30 @@ class TestDB(unittest.TestCase):
         self.db.create("Person", [{"name": "Test User 2"}])
         assert before != self.db.db
 
+    def test_readme_snippets(self):
+        self.make_new_db()
+        new_person_ids = self.db.create("Person", [{"name": "Bob"}, {"name":"Alice"}])
+        assert new_person_ids == ['0','1']
+
+        person_data = self.db.get_data("Person", new_person_ids, ["name"])
+        assert person_data == [["Bob"], ["Alice"]]
+
+        person_id = self.db.create("Person", [{"name": "Test User"}])[0] 
+        ticket_id = self.db.create("Ticket", [{"seat": "A1"}])[0]
+
+        self.db.link("Person", [person_id], "has", "Ticket", [ticket_id])
+
+        this_persons_tickets = self.db.traverse("Person", [person_id], "->", "has", "Ticket")[0]
+        assert this_persons_tickets == ticket_id
+
+        this_tickets_persons = self.db.traverse("Ticket", [ticket_id], "<-", "has", "Person")[0]
+        assert this_tickets_persons == person_id
+
+        self.db.unlink("Person", [person_id], "has", "Ticket", [ticket_id])
+
+        self.db.delete("Person", [person_id])
+
+
 
 if __name__ == '__main__':
     unittest.main()
