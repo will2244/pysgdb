@@ -3,6 +3,10 @@ from datetime import datetime
 from typing import Dict, Any
 from unique_tuples import unique_tuples
 from unique_elements import unique_elements
+import pickle 
+import os
+
+
 
 Id = str
 
@@ -171,7 +175,7 @@ class DB:
             # delete links in both directions
             links_to_check = self.db["node_links"].get(node_name, set())
             for link in links_to_check:
-                for direction, opposite_direction in [("->", "<-"), ("<-", "->")]:
+                for direction, opposite_direction in [("->", "<-"), ("<-", "->")]: # TODO check for bug, opposite_direction
                     targets_to_unlink = []
                     try:
                         for target_node, target_ids in self.db[direction][link][node_name][node_id].items():
@@ -282,3 +286,13 @@ class DB:
                 # No links for this source_id, skip to the next one
                 continue
         return list(results)
+
+
+    def save(self, folder_path: str, db_filename: str):
+        with open(os.path.join(folder_path, db_filename), 'wb') as f:
+            pickle.dump(self.db, f)
+
+
+    def load(self, folder_path: str, db_filename: str):
+        with open(os.path.join(folder_path, db_filename), 'rb') as f:
+            self.db = pickle.load(f)
