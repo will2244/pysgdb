@@ -1,11 +1,25 @@
-import copy
-from datetime import datetime
-from typing import Dict, Any
-from unique_tuples import unique_tuples
-from unique_elements import unique_elements
-import pickle 
 import os
+import pickle 
+from copy import deepcopy
+from typing import Any, List, Tuple, Set
 
+
+# helper functions
+def _unique_elements(a: List[Any], b: List[Any]) -> Tuple[List[Any], List[Any]]:
+    b_copy = deepcopy(b)
+    c = []
+    for item in a:
+        if item in b_copy:
+            b_copy.remove(item)
+        else:
+            c.append(item)
+    d = [item for item in b_copy if item not in a]
+    return c, d
+
+def _unique_tuples(a: Set[Tuple[Any, Any]], b: Set[Tuple[Any, Any]]) -> Tuple[List[Tuple[Any, Any]], List[Tuple[Any, Any]]]:
+    c = list(a - b)
+    d = list(b - a)
+    return c, d
 
 
 Id = str
@@ -49,7 +63,7 @@ class DB:
         ### validations ###
         current_links = self.db["schema"]["links"]
         target_links = schema["links"]
-        deleted_links, new_links = unique_tuples(current_links, target_links)
+        deleted_links, new_links = _unique_tuples(current_links, target_links)
         deleted_link_names = [x[1] for x in deleted_links]
 
         for (source, link, target) in deleted_links:
@@ -61,7 +75,7 @@ class DB:
             
         current_nodes = list(self.db["schema"]["nodes"].keys())
         target_nodes = list(schema["nodes"].keys())
-        deleted_nodes, new_nodes = unique_elements(current_nodes, target_nodes)
+        deleted_nodes, new_nodes = _unique_elements(current_nodes, target_nodes)
 
         for node_name in deleted_nodes:
             # make sure the delete node is not in a link - either forwards or backwards
@@ -131,7 +145,7 @@ class DB:
 
 
     def migrate(self, schema):
-        schema = copy.deepcopy(schema)
+        schema = deepcopy(schema)
         if not hasattr(self, 'db'):
             self._init_schema(schema)
         else:

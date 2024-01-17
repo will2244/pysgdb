@@ -1,6 +1,6 @@
 import unittest
 from datetime import datetime
-from pysgdb import DB
+from pysgdb import DB, _unique_elements, _unique_tuples
 import os
 
 
@@ -387,6 +387,86 @@ class TestDB(unittest.TestCase):
 
         self.db.delete("Person", [person_id])
 
+
+class TestUniqueElements(unittest.TestCase):
+
+    def test_both_lists_empty(self):
+        a, b = [], []
+        c, d = _unique_elements(a, b)
+        self.assertEqual(c, [])
+        self.assertEqual(d, [])
+
+    def test_one_list_empty(self):
+        a = [1, 2, 3]
+        b = []
+        c, d = _unique_elements(a, b)
+        self.assertEqual(c, [1, 2, 3])
+        self.assertEqual(d, [])
+
+    def test_no_common_elements(self):
+        a = [1, 2, 3]
+        b = [4, 5, 6]
+        c, d = _unique_elements(a, b)
+        self.assertEqual(c, [1, 2, 3])
+        self.assertEqual(d, [4, 5, 6])
+
+    def test_some_common_elements(self):
+        a = [1, 2, 3, 4]
+        b = [3, 4, 5, 6]
+        c, d = _unique_elements(a, b)
+        self.assertEqual(c, [1, 2])
+        self.assertEqual(d, [5, 6])
+
+    def test_all_common_elements(self):
+        a = [1, 2, 3]
+        b = [1, 2, 3]
+        c, d = _unique_elements(a, b)
+        self.assertEqual(c, [])
+        self.assertEqual(d, [])
+
+    def test_with_duplicates(self):
+        a = [1, 2, 2, 3, 3]
+        b = [2, 3, 3, 4, 4]
+        c, d = _unique_elements(a, b)
+        self.assertEqual(c, [1, 2])
+        self.assertEqual(d, [4, 4])
+
+
+class TestUniqueTuples(unittest.TestCase):
+
+    def test_both_sets_empty(self):
+        a, b = set(), set()
+        c, d = _unique_tuples(a, b)
+        self.assertEqual(c, [])
+        self.assertEqual(d, [])
+
+    def test_one_set_empty(self):
+        a = {(1, 2), (3, 4)}
+        b = set()
+        c, d = _unique_tuples(a, b)
+        self.assertEqual(c, [(1, 2), (3, 4)])
+        self.assertEqual(d, [])
+
+    def test_no_common_tuples(self):
+        a = {(1, 2), (3, 4)}
+        b = {(5, 6), (7, 8)}
+        c, d = _unique_tuples(a, b)
+        self.assertEqual(c, [(1, 2), (3, 4)])
+        self.assertEqual(d, [(5, 6), (7, 8)])
+
+    def test_some_common_tuples(self):
+        a = {(1, 2), (3, 4), (5, 6)}
+        b = {(5, 6), (7, 8)}
+        c, d = _unique_tuples(a, b)
+        self.assertEqual(c, [(1, 2), (3, 4)])
+        self.assertEqual(d, [(7, 8)])
+
+    def test_all_common_tuples(self):
+        a = {(1, 2), (3, 4)}
+        b = {(1, 2), (3, 4)}
+        c, d = _unique_tuples(a, b)
+        self.assertEqual(c, [])
+        self.assertEqual(d, [])
 
 
 if __name__ == '__main__':
