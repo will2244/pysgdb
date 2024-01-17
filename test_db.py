@@ -1,6 +1,7 @@
 import unittest
 from datetime import datetime
-from db import DB
+from pysgdb import DB
+import os
 
 
 class TestDB(unittest.TestCase):
@@ -282,7 +283,6 @@ class TestDB(unittest.TestCase):
         assert "enjoyed" in self.db.db["node_links"]["Person"]
 
 
-
     def test_migrate_node(self):
         self.make_new_db()
 
@@ -342,6 +342,27 @@ class TestDB(unittest.TestCase):
         # test node insertion
         assert {"bio": "str"} == self.db.db["schema"]["nodes"]["Actor"]
         assert "Actor" in self.db.db["nodes"]
+
+
+    def test_save_and_load_db(self):
+        # test save and load save database
+        self.make_new_db()
+        person_id = self.db.create("Person", [{"name": "Test User"}])[0] 
+        ticket_id = self.db.create("Ticket", [{"seat": "A1"}])[0]
+        self.db.link("Person", [person_id], "has", "Ticket", [ticket_id])
+        
+        folder = "."
+        db_filename = "test_save_and_load_db"
+        self.db.save(folder, db_filename)
+        before = self.db.db
+
+        self.db = DB()
+        self.db.load(folder, db_filename)
+        os.remove(os.path.join(folder, db_filename))
+
+        assert before == self.db.db
+        self.db.create("Person", [{"name": "Test User 2"}])
+        assert before != self.db.db
 
 
 if __name__ == '__main__':
