@@ -118,6 +118,21 @@ db.unlink("Person", [person_id], "has", "Ticket", [ticket_id])
 db.delete("Person", [person_id])
 ```
 
+### Save database to file
+
+```python
+folder = "."
+db_filename = "database_data"
+db.save(folder, db_filename)
+```
+
+### Load database from file
+
+```python
+new_db = DB()
+new_db.save(folder, db_filename)
+```
+
 ### Indexes, filters, unique, etc..
 
 These features will not be supported in this build. The existing features support only the most critical input/output requirements of the db. All advanced data manipulation needs to be handled manually on the raw query results.
