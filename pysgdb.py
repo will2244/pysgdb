@@ -158,8 +158,9 @@ class DB:
         return str(current_id)
 
 
-    def create(self, node_name: str, attributes: [dict]) -> [Id]:
+    def create(self, node_name: str, attributes: List[dict]) -> List[Id]:
         # 1) Check if the attributes are correct on write (only checks the first dictionary for speed purposes)
+        assert type(attributes) == list, "'attributes' parameter in pysgdb create() function must be a list"
         assert len(attributes) > 0, "Must send at least one set of attributes to the create() function"
         assert node_name in self.db["schema"]["nodes"], "Node name does not exist in schema"
         first_attribute_set = attributes[0]
@@ -179,7 +180,7 @@ class DB:
         return new_ids
 
 
-    def delete(self, node_name: str, ids: [Id]):
+    def delete(self, node_name: str, ids: List[Id]):
         assert node_name in self.db["schema"]["nodes"], f"Node name: {node_name} not in schema"
         
         for node_id in ids:
@@ -205,7 +206,7 @@ class DB:
             del self.db["nodes"][node_name][node_id]
 
 
-    def link(self, node_1_name: str, node_1_ids: [Id], link: str, node_2_name: str, node_2_ids: [Id]):
+    def link(self, node_1_name: str, node_1_ids: List[Id], link: str, node_2_name: str, node_2_ids: List[Id]):
         # Validate if node names and link are in schema
         assert node_1_name in self.db["schema"]["nodes"], f"Cannot create link, node name: {node_1_name} not in schema"
         assert node_2_name in self.db["schema"]["nodes"], f"Cannot create link, node name: {node_2_name} not in schema"
@@ -236,7 +237,7 @@ class DB:
                 self.db["<-"][link][node_2_name][node_2_id][node_1_name].add(node_1_id)
 
 
-    def unlink(self, node_1_name: str, node_1_ids: [Id], link: str, node_2_name: str, node_2_ids: [Id]):
+    def unlink(self, node_1_name: str, node_1_ids: List[Id], link: str, node_2_name: str, node_2_ids: List[Id]):
         assert node_1_name in self.db["schema"]["nodes"], f"Node name: {node_1_name} not in schema"
         assert node_2_name in self.db["schema"]["nodes"], f"Node name: {node_2_name} not in schema"
         assert (node_1_name, link, node_2_name) in self.db["schema"]["links"], f"Link: {link} not in schema between {node_1_name} and {node_2_name}"
@@ -268,22 +269,38 @@ class DB:
                     pass  # Link didn’t exist, so nothing to unlink
 
 
-    def get_data(self, node_name: str, ids: [Id], attributes: [str]) -> [[Any]]:
+    def get(self, node_name: str, ids: List[Id] | None, attributes: List[str]) -> List[List[Any]]:
         assert node_name in self.db["schema"]["nodes"], f"Node name: {node_name} not in schema"
         for attr in attributes:
-            assert attr in self.db["schema"]["nodes"][node_name], f"Attribute: {attr} not found in {node_name} nodes"
-            
+            if attr != "id":
+                assert attr in self.db["schema"]["nodes"][node_name], f"Attribute: {attr} not found in {node_name} nodes"
+        
+        if ids == None:
+            result = []
+            for node_id in self.db["nodes"][node_name]:
+                entity_data = []
+                for attr in attributes:
+                    if attr == "id":
+                        entity_data.append(node_id)
+                    else:
+                        entity_data.append(self.db["nodes"][node_name][node_id].get(attr, None))
+                result.append(entity_data)
+            return result
+        
         result = []
         for node_id in ids:
             assert node_id in self.db["nodes"][node_name], f"ID: {node_id} not found in {node_name} nodes"
             entity_data = []
             for attr in attributes:
-                entity_data.append(self.db["nodes"][node_name][node_id].get(attr, None))
+                if attr == "id":
+                    entity_data.append(node_id)
+                else:
+                    entity_data.append(self.db["nodes"][node_name][node_id].get(attr, None))
             result.append(entity_data)
         return result
 
 
-    def traverse(self, source_node_name: str, source_ids: [Id], direction: str, link_name: str, target_node_name: str) -> [Id]:
+    def traverse(self, source_node_name: str, source_ids: List[Id], direction: str, link_name: str, target_node_name: str) -> List[Id]:
         assert source_node_name in self.db["schema"]["nodes"], f"Source node name: {source_node_name} not in schema"
         assert target_node_name in self.db["schema"]["nodes"], f"Target node name: {target_node_name} not in schema"
         assert direction in ["->", "<-"], f"Invalid direction: {direction}. Must be '->' or '<-'."

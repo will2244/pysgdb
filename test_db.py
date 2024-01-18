@@ -168,32 +168,39 @@ class TestDB(unittest.TestCase):
             self.db.unlink("Person", [person_id], "has", "Ticket", ["10"])
 
 
-    def test_get_data(self):
+    def test_get(self):
         self.make_new_db()
         
         # Create nodes for testing
         person_id = self.db.create("Person", [{"name": "Test User"}])[0]
         movie_id = self.db.create("Movie", [{"title": "The Movie"}])[0]
         
-        # Valid case: Getting data from the existing node
-        person_data = self.db.get_data("Person", [person_id], ["name"])
+        # Getting data from the existing node
+        person_data = self.db.get("Person", [person_id], ["name"])
         self.assertEqual(person_data, [["Test User"]])
         
-        # Valid case: Getting data from the existing node
-        movie_data = self.db.get_data("Movie", [movie_id], ["title"])
+        # Getting data from the existing node
+        movie_data = self.db.get("Movie", [movie_id], ["title"])
         self.assertEqual(movie_data, [["The Movie"]])
         
-        # Invalid case: Non-existent ID
+        # Non-existent ID
         with self.assertRaises(AssertionError):
-            self.db.get_data("Person", ["2"], ["name"])
+            self.db.get("Person", ["2"], ["name"])
             
-        # Invalid case: Non-existent node name
+        # Non-existent node name
         with self.assertRaises(AssertionError):
-            self.db.get_data("InvalidNode", [person_id], ["name"])
+            self.db.get("InvalidNode", [person_id], ["name"])
             
-        # Invalid case: Non-existent attribute name
+        # Non-existent attribute name
         with self.assertRaises(AssertionError):
-            self.db.get_data("Person", [person_id], ["invalid_attribute"])
+            self.db.get("Person", [person_id], ["invalid_attribute"])
+
+        # Getting data from all instances of a node
+        person_data = self.db.get("Person", None, ["id", "name"])
+        assert person_data == [['0', 'Test User']]
+        self.db.create("Person", [{"name": "Another test user"}])
+        person_data2 = self.db.get("Person", None, ["id", "name"])
+        assert person_data2 == [['0', 'Test User'], ['2', 'Another test user']]
 
 
     def test_traverse(self):
@@ -350,6 +357,10 @@ class TestDB(unittest.TestCase):
         person_id = self.db.create("Person", [{"name": "Test User"}])[0] 
         ticket_id = self.db.create("Ticket", [{"seat": "A1"}])[0]
         self.db.link("Person", [person_id], "has", "Ticket", [ticket_id])
+        self.db.create("Showing", [
+            {"date": datetime(2000, 1, 1), "theater": "Theater 5"},
+            {"date": datetime(2010, 1, 1), "theater": "Theater 2"}
+        ])
         
         folder = "."
         db_filename = "test_save_and_load_db"
@@ -369,7 +380,15 @@ class TestDB(unittest.TestCase):
         new_person_ids = self.db.create("Person", [{"name": "Bob"}, {"name":"Alice"}])
         assert new_person_ids == ['0','1']
 
-        person_data = self.db.get_data("Person", new_person_ids, ["name"])
+        new_showing_ids = self.db.create("Showing", [
+            {"date": datetime(2000, 1, 1), "theater": "Theater 5"},
+            {"date": datetime(2010, 1, 1), "theater": "Theater 2"}
+        ])
+        showing_data = self.db.get("Showing", new_showing_ids, ["date", "theater"])
+        assert showing_data == [[datetime(2000, 1, 1), "Theater 5"], [datetime(2010, 1, 1), "Theater 2"]]
+
+
+        person_data = self.db.get("Person", new_person_ids, ["name"])
         assert person_data == [["Bob"], ["Alice"]]
 
         person_id = self.db.create("Person", [{"name": "Test User"}])[0] 
