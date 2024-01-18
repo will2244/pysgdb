@@ -104,20 +104,22 @@ Notice how the ids are in a list. If you supply many ids, they will all be linke
 
 ## Traverse
 
-Get all tickets that this person has. The second parameter is a list so many Ids can be supplied at once - similar to a join operation.
+To get from an instance of one node to an instance of another type of node, you need to Traverse. The following example shows the query: "Get all tickets that this person has"
 
 ```python
 this_persons_tickets = db.traverse("Person", [person_id], "->", "has", "Ticket")[0]
 assert this_persons_tickets == ticket_id
 ```
+The second parameter is a list so many ids can be supplied at once - similar to a join operation.
 
-
-Going in the other direction would look like this:
+Links can also be traversed in reverse to the way the link way created, so saying "Get all Person ids that have a ticket" would look like this:
 
 ```python
 this_tickets_persons = db.traverse("Ticket", [ticket_id], "<-", "has", "Person")[0]
 assert this_tickets_persons == person_id
 ```
+
+Where the arrow `->`, `<-` denotes the requested direction.
 
 This multidirection functionality isn't really nessesary for the scope of this project, but it will be used extensively in the new query language of my next build.
 
