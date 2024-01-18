@@ -12,7 +12,7 @@ A simple, type safe, in-memory, graph database written in pure python. No extern
 
 My next build will focus on a new graph-SQL-object query language I have been working on.
 
-### Installation
+## Installation
 
 Just copy the `pysgdb.py` file directly to your workspace. It's only one file and has no external dependencies.
 
@@ -24,13 +24,13 @@ from pysgdb import DB
 db = DB()
 ```
 
-### Schema
-Schema in pysgdb is declarative. Meaning each time you want to update the schema, you need to supply the **entire** schema. pysgdb will internally run the migration from it's current schema to the schema you specify.
+## Schema
+You cannot write to pysgdb without first specifying what the database will store. You do this by supplying a schema to the database.
 
-Here is how to update the schema:
+Schema in pysgdb is declarative. Meaning each time you want to update the schema, you need to supply the **entire** schema, new changes included. pysgdb will internally run the migration from it's current schema to the schema you specify.
 
 ```python
-db.migrate({
+my_scehma = {
     "nodes": {
         "Person": {"name": "str"},
         "Movie": {"title": "str"},
@@ -44,34 +44,54 @@ db.migrate({
         ("Showing", "of", "Movie"),
         ("Showing", "of", "Play")
     }
-})
+}
+db.migrate(my_schema)
 ```
 
-A schema is a python dictionary. There are two main constructs in this graph database:
+A schema is a python dictionary. There are two main constructs in pysgdb:
 1. Nodes
 2. Links
 
-A Node is a 'thing', or an 'entity'. Nodes in the schema are capitalized. Nodes have attributes. A Link is a 'connection'. Links connect nodes together with semantics.
+A Node is just a blueprint for something - similar to a type or table. Nodes are capitalized and have attributes. A Link is a 'connection'. Links connect nodes together with semantics.
 
-### Create
+If you want to update the schema, just make the schema modifications you want and then call `db.migrate(new_schema)`
 
-Create two new Person nodes:
+## Create
+
+Create two new Person nodes. Ids are returned:
 
 ```python
 new_person_ids = db.create("Person", [{"name": "Bob"}, {"name": "Alice"}])
 ```
 
-### Get
+## Get
 
 Get the names of all Person nodes:
 ```python
-person_data = db.get_data("Person", new_person_ids, ["name"])
+person_data = db.get("Person", new_person_ids, ["name"])
 assert person_data == [["Bob"], ["Alice"]]
 ```
 
-### Link
+Getting two or more fields looks like this:
+```python
+new_showing_ids = self.db.create("Showing", [
+    {"date": datetime(2000, 1, 1), "theater": "Theater 5"},
+    {"date": datetime(2010, 1, 1), "theater": "Theater 2"}
+])
+showing_data = db.get("Showing", new_showing_ids, ["date", "theater"])
+assert showing_data == [[datetime(2000, 1, 1), "Theater 5"], [datetime(2010, 1, 1), "Theater 2"]]
+```
 
-Give a Person a Ticket.
+Supplying `None` to the ids argument will fetch all instances of the node:
+
+```python
+db.get("Showing", None, ["id", "date", "theater"])
+assert showing_data == [[datetime(2000, 1, 1), "Theater 5"], [datetime(2010, 1, 1), "Theater 2"]]
+```
+
+## Link
+
+Give a Person a Ticket:
 
 ```python
 person_id = db.create("Person", [{"name": "Test User"}])[0] 
@@ -80,7 +100,7 @@ ticket_id = db.create("Ticket", [{"seat": "A1"}])[0]
 db.link("Person", [person_id], "has", "Ticket", [ticket_id])
 ```
 
-### Traverse
+## Traverse
 
 Get all tickets that this person has. The second parameter is a list so many Ids can be supplied at once - similar to a join operation.
 
@@ -104,21 +124,21 @@ A small preview of the new query language - the following lines represent the tw
 - `Person->has:Ticket`
 - `Ticket<-has:Person`
 
-### Unlink
+## Unlink
 
 Remove the possibility that a Person could have a Ticket.
 ```python
 db.unlink("Person", [person_id], "has", "Ticket", [ticket_id])
 ```
 
-### Delete
+## Delete
 
 ```python
 # this also deletes any links to or from person_id
 db.delete("Person", [person_id])
 ```
 
-### Save database to file
+## Save database to file
 
 ```python
 folder = "."
@@ -126,13 +146,13 @@ db_filename = "database_data"
 db.save(folder, db_filename)
 ```
 
-### Load database from file
+## Load database from file
 
 ```python
 new_db = DB()
 new_db.save(folder, db_filename)
 ```
 
-### Indexes, filters, unique, etc..
+## Indexes, filters, unique, etc..
 
 These features will not be supported in this build. The existing features support only the most critical input/output requirements of the db. All advanced data manipulation needs to be handled manually on the raw query results.
