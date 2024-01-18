@@ -100,6 +100,8 @@ ticket_id = db.create("Ticket", [{"seat": "A1"}])[0]
 db.link("Person", [person_id], "has", "Ticket", [ticket_id])
 ```
 
+Notice how the ids are in a list. If you supply many ids, they will all be linked to each other.
+
 ## Traverse
 
 Get all tickets that this person has. The second parameter is a list so many Ids can be supplied at once - similar to a join operation.
@@ -126,10 +128,12 @@ A small preview of the new query language - the following lines represent the tw
 
 ## Unlink
 
-Remove the possibility that a Person could have a Ticket.
+This person is no longer linked to this ticket:
 ```python
 db.unlink("Person", [person_id], "has", "Ticket", [ticket_id])
 ```
+
+Notice how the ids are in a list. If you supply many ids, they will all be linked to each other.
 
 ## Delete
 
