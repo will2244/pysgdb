@@ -154,7 +154,7 @@ db.save(folder, db_filename)
 
 ```python
 new_db = DB()
-new_db.save(folder, db_filename)
+new_db.load(folder, db_filename)
 ```
 
 ## Indexes, filters, unique, etc..
