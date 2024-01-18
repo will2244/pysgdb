@@ -135,7 +135,7 @@ This person is no longer linked to this ticket:
 db.unlink("Person", [person_id], "has", "Ticket", [ticket_id])
 ```
 
-Notice how the ids are in a list. If you supply many ids, they will all be linked to each other.
+Notice how the ids are in a list. If you supply many ids, they will all be unlinked from each other.
 
 ## Delete
 
