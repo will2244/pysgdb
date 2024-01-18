@@ -30,7 +30,7 @@ You cannot write to pysgdb without first specifying what the database will store
 Schema in pysgdb is declarative. Meaning each time you want to update the schema, you need to supply the **entire** schema, new changes included. pysgdb will internally run the migration from it's current schema to the schema you specify.
 
 ```python
-my_scehma = {
+my_schema = {
     "nodes": {
         "Person": {"name": "str"},
         "Movie": {"title": "str"},
